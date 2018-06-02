@@ -8,6 +8,7 @@ class Constants
     const API_URLS = [
         1 => 'https://i.instagram.com/api/v1/',
         2 => 'https://i.instagram.com/api/v2/',
+        3 => 'https://b.i.instagram.com/api/v1/',
     ];
     const IG_VERSION = '27.0.0.7.97';
     const VERSION_CODE = '84433655';
@@ -31,11 +32,11 @@ class Constants
     const SUPPORTED_CAPABILITIES = [
         [
             'name'    => 'SUPPORTED_SDK_VERSIONS',
-            'value'   => '9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0,19.0,20.0,21.0,22.0,23.0,24.0',
+            'value'   => '9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0,19.0,20.0,21.0,22.0,23.0,24.0,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34.0,35.0,36.0,37.0,38.0,39.0',
         ],
         [
             'name'  => 'FACE_TRACKER_VERSION',
-            'value' => '9',
+            'value' => '10',
         ],
         [
             'name'  => 'segmentation',

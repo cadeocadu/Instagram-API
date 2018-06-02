@@ -901,6 +901,7 @@ class Internal extends RequestCollection
         $prelogin = false)
     {
         $request = $this->ig->request('qe/sync/')
+            ->addHeader('X-DEVICE-ID', $this->ig->uuid)
             ->addPost('id', $this->ig->uuid)
             ->addPost('experiments', Constants::LOGIN_EXPERIMENTS);
         if ($prelogin) {
@@ -925,6 +926,7 @@ class Internal extends RequestCollection
     public function syncUserFeatures()
     {
         $result = $this->ig->request('qe/sync/')
+            ->setVersion(3)
             ->addPost('_uuid', $this->ig->uuid)
             ->addPost('_uid', $this->ig->account_id)
             ->addPost('_csrftoken', $this->ig->client->getToken())
@@ -936,6 +938,34 @@ class Internal extends RequestCollection
         $this->_saveExperiments($result);
 
         return $result;
+    }
+
+    /**
+     * Send launcher sync.
+     *
+     * @param bool $prelogin Indicates if the request is done before login request.
+     *
+     * @throws \InstagramAPI\Exception\InstagramException
+     *
+     * @return \InstagramAPI\Response\GenericResponse
+     */
+    public function sendLauncherSync(
+        $prelogin)
+    {
+        $request = $this->ig->request('launcher/sync/')
+            ->setNeedsAuth(false)
+            ->addPost('_csrftoken', $this->ig->client->getToken())
+            ->addPost('id', $this->ig->uuid)
+            ->addPost('configs', '');
+
+        if (!$prelogin) {
+            $request
+                ->setVersion(3)
+                ->addPost('_uuid', $this->ig->uuid)
+                ->addPost('_uid', $this->ig->account_id);
+        }
+
+        return $request->getResponse(new Response\GenericResponse());
     }
 
     /**
@@ -965,24 +995,22 @@ class Internal extends RequestCollection
      * @since 10.24.0 app version.
      */
     public function readMsisdnHeader(
-        $subnoKey = null)
+        $subnoKey = 'default')
     {
-        $request = $this->ig->request('accounts/read_msisdn_header/')
+        return $this->ig->request('accounts/read_msisdn_header/')
             ->setNeedsAuth(false)
+            ->addHeader('X-DEVICE-ID', $this->ig->uuid)
             // UUID is used as device_id intentionally.
             ->addPost('device_id', $this->ig->uuid)
-            ->addPost('_csrftoken', $this->ig->client->getToken());
-        if ($subnoKey !== null) {
-            $request->addPost('subno_key', $subnoKey);
-        }
-
-        return $request->getResponse(new Response\MsisdnHeaderResponse());
+            ->addPost('_csrftoken', $this->ig->client->getToken())
+            ->addPost('subno_key', $subnoKey)
+            ->getResponse(new Response\MsisdnHeaderResponse());
     }
 
     /**
      * Bootstraps MSISDN header.
      *
-     * WARNING. DON'T USE. UNDER RESEARCH.
+     * @param string $usage Mobile subno usage.
      *
      * @throws \InstagramAPI\Exception\InstagramException
      *
@@ -990,10 +1018,12 @@ class Internal extends RequestCollection
      *
      * @since 10.24.0 app version.
      */
-    public function bootstrapMsisdnHeader()
+    public function bootstrapMsisdnHeader(
+        $usage = 'ig_select_app')
     {
         $request = $this->ig->request('accounts/msisdn_header_bootstrap/')
             ->setNeedsAuth(false)
+            ->addPost('mobile_subno_usage', $usage)
             // UUID is used as device_id intentionally.
             ->addPost('device_id', $this->ig->uuid)
             ->addPost('_csrftoken', $this->ig->client->getToken());
@@ -1004,15 +1034,25 @@ class Internal extends RequestCollection
     /**
      * Get zero rating token hash result.
      *
+     * @param bool $prelogin Indicates if the request is done before login request.
+     *
      * @throws \InstagramAPI\Exception\InstagramException
      *
      * @return \InstagramAPI\Response\TokenResultResponse
      */
-    public function getZeroRatingTokenResult()
+    public function getZeroRatingTokenResult(
+        $prelogin)
     {
         $request = $this->ig->request('zr/token/result/')
             ->setNeedsAuth(false)
+            ->addParam('custom_device_id', $this->ig->uuid)
+            ->addParam('device_id', $this->ig->device_id)
+            ->addParam('fetch_reason', 'token_expired')
             ->addParam('token_hash', '');
+
+        if (!$prelogin) {
+            $request->setVersion(3);
+        }
 
         return $request->getResponse(new Response\TokenResultResponse());
     }
@@ -1076,6 +1116,19 @@ class Internal extends RequestCollection
     }
 
     /**
+     * Get loom fetch config.
+     *
+     * @throws \InstagramAPI\Exception\InstagramException
+     *
+     * @return \InstagramAPI\Response\LoomFetchConfigResponse
+     */
+    public function getLoomFetchConfig()
+    {
+        return $this->ig->request('loom/fetch_config/')
+            ->getResponse(new Response\LoomFetchConfigResponse());
+    }
+
+    /**
      * Get profile "notices".
      *
      * This is just for some internal state information, such as
@@ -1099,25 +1152,43 @@ class Internal extends RequestCollection
      * policy where Instagram asks you to accept new policy and accept that
      * you have 18 years old or more.
      *
-     * @param int $surfaceParam
-     *
      * @throws \InstagramAPI\Exception\InstagramException
      *
      * @return \InstagramAPI\Response\FetchQPDataResponse
      */
-    public function getQPFetch(
-        $surfaceParam)
+    public function getQPFetch()
     {
-        return $this->ig->request('qp/fetch/')
+        $query = 'viewer() {eligible_promotions.surface_nux_id(<surface>).external_gating_permitted_qps(<external_gating_permitted_qps>).supports_client_filters(true) {edges {priority,time_range {start,end},node {id,promotion_id,max_impressions,triggers,contextual_filters {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}}}}}},template {name,parameters {name,required,bool_value,string_value,color_value,}},creatives {title {text},content {text},footer {text},social_context {text},primary_action{title {text},url,limit,dismiss_promotion},secondary_action{title {text},url,limit,dismiss_promotion},dismiss_action{title {text},url,limit,dismiss_promotion},image.scale(<scale>) {uri,width,height}}}}}}';
+
+        return $this->ig->request('qp/batch_fetch/')
             ->addPost('vc_policy', 'default')
             ->addPost('_csrftoken', $this->ig->client->getToken())
             ->addPost('_uid', $this->ig->account_id)
             ->addPost('_uuid', $this->ig->uuid)
-            ->addPost('surface_param', $surfaceParam)
+            ->addPost('surfaces_to_queries', json_encode(
+                [
+                    Constants::SURFACE_PARAM[0] => $query,
+                    Constants::SURFACE_PARAM[1] => $query,
+                ]
+            ))
             ->addPost('version', 1)
             ->addPost('scale', 2)
-            ->addPost('query', 'viewer() {eligible_promotions.surface_nux_id(<surface>).external_gating_permitted_qps(<external_gating_permitted_qps>).supports_client_filters(true) {edges {priority,time_range {start,end},node {id,promotion_id,max_impressions,triggers,contextual_filters {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}},clauses {clause_type,filters {filter_type,unknown_action,value {name,required,bool_value,int_value, string_value},extra_datas {name,required,bool_value,int_value, string_value}}}}}},template {name,parameters {name,required,bool_value,string_value,color_value,}},creatives {title {text},content {text},footer {text},social_context {text},primary_action{title {text},url,limit,dismiss_promotion},secondary_action{title {text},url,limit,dismiss_promotion},dismiss_action{title {text},url,limit,dismiss_promotion},image.scale(<scale>) {uri,width,height}}}}}}')
             ->getResponse(new Response\FetchQPDataResponse());
+    }
+
+    /**
+     * Get quick promotions cooldowns.
+     *
+     * @throws \InstagramAPI\Exception\InstagramException
+     *
+     * @return \InstagramAPI\Response\QPCooldownsResponse
+     */
+    public function getQPCooldowns()
+    {
+        return $this->ig->request('qp/get_cooldowns/')
+            ->addParam('signed_body', Signatures::generateSignature(json_encode((object) []).'.{}'))
+            ->addParam('ig_sig_key_version', Constants::SIG_KEY_VERSION)
+            ->getResponse(new Response\QPCooldownsResponse());
     }
 
     /**

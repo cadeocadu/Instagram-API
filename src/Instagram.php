@@ -491,6 +491,7 @@ class Instagram implements ExperimentsInterface
                     ->addPost('adid', $this->advertising_id)
                     ->addPost('guid', $this->uuid)
                     ->addPost('device_id', $this->device_id)
+                    ->addPost('google_tokens', '[]')
                     ->addPost('password', $this->password)
                     ->addPost('login_attempt_count', 0)
                     ->getResponse(new Response\LoginResponse());
@@ -917,11 +918,12 @@ class Instagram implements ExperimentsInterface
     {
         // Calling this non-token API will put a csrftoken in our cookie
         // jar. We must do this before any functions that require a token.
+        $this->internal->getZeroRatingTokenResult(true);
+        $this->account->setContactPointPrefill('prefill');
         $this->internal->readMsisdnHeader();
         $this->internal->syncDeviceFeatures(true);
-        $this->internal->getZeroRatingTokenResult();
-        $this->internal->logAttribution();
-        $this->account->setContactPointPrefill('prefill');
+        $this->internal->sendLauncherSync(true);
+        //$this->internal->logAttribution();
     }
 
     /**
@@ -1019,23 +1021,31 @@ class Instagram implements ExperimentsInterface
         // You have been warned.
         if ($justLoggedIn) {
             // Perform the "user has just done a full login" API flow.
-            $this->internal->getZeroRatingTokenResult();
-            $this->people->getBootstrapUsers();
-            $this->story->getReelsTrayFeed();
-            $this->timeline->getTimelineFeed(null, ['recovered_from_crash' => true]);
+            $this->internal->getZeroRatingTokenResult(false);
+            $this->internal->sendLauncherSync(false);
             $this->internal->syncUserFeatures();
+            $this->timeline->getTimelineFeed(null, ['recovered_from_crash' => true]);
+            $this->story->getReelsTrayFeed();
+            $this->discover->getSuggestedSearches('users');
+            $this->discover->getRecentSearches();
+            $this->discover->getSuggestedSearches('blended');
+            //$this->story->getReelsMediaFeed();
             $this->_registerPushChannels();
             $this->direct->getRankedRecipients('reshare', true);
             $this->direct->getRankedRecipients('raven', true);
             $this->direct->getInbox();
             $this->account->getPresenceStatus();
-            $this->internal->getProfileNotice();
-            //$this->internal->getMegaphoneLog();
+            $this->internal->bootstrapMsisdnHeader();
             $this->people->getRecentActivityInbox();
-            $this->internal->getQPFetch(Constants::SURFACE_PARAM[0]);
+            $this->internal->getLoomFetchConfig();
+            $this->internal->getProfileNotice();
             $this->media->getBlockedMedia();
-            $this->internal->getQPFetch(Constants::SURFACE_PARAM[1]);
+            $this->people->getBootstrapUsers();
+            $this->internal->getQPCooldowns();
+            $this->internal->bootstrapMsisdnHeader();
             $this->discover->getExploreFeed(null, true);
+            //$this->internal->getMegaphoneLog();
+            $this->internal->getQPFetch();
             $this->internal->getFacebookOTA();
         } else {
             $lastLoginTime = $this->settings->get('last_login');
