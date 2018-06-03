@@ -918,7 +918,7 @@ class Instagram implements ExperimentsInterface
     {
         // Calling this non-token API will put a csrftoken in our cookie
         // jar. We must do this before any functions that require a token.
-        $this->internal->getZeroRatingTokenResult(true);
+        $this->internal->getZeroRatingTokenResult();
         $this->account->setContactPointPrefill('prefill');
         $this->internal->readMsisdnHeader();
         $this->internal->syncDeviceFeatures(true);
@@ -1021,7 +1021,7 @@ class Instagram implements ExperimentsInterface
         // You have been warned.
         if ($justLoggedIn) {
             // Perform the "user has just done a full login" API flow.
-            $this->internal->getZeroRatingTokenResult(false);
+            $this->internal->getZeroRatingTokenResult();
             $this->internal->sendLauncherSync(false);
             $this->internal->syncUserFeatures();
             $this->timeline->getTimelineFeed(null, ['recovered_from_crash' => true]);

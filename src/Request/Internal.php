@@ -926,7 +926,6 @@ class Internal extends RequestCollection
     public function syncUserFeatures()
     {
         $result = $this->ig->request('qe/sync/')
-            ->setVersion(3)
             ->addPost('_uuid', $this->ig->uuid)
             ->addPost('_uid', $this->ig->account_id)
             ->addPost('_csrftoken', $this->ig->client->getToken())
@@ -960,7 +959,6 @@ class Internal extends RequestCollection
 
         if (!$prelogin) {
             $request
-                ->setVersion(3)
                 ->addPost('_uuid', $this->ig->uuid)
                 ->addPost('_uid', $this->ig->account_id);
         }
@@ -1034,27 +1032,19 @@ class Internal extends RequestCollection
     /**
      * Get zero rating token hash result.
      *
-     * @param bool $prelogin Indicates if the request is done before login request.
-     *
      * @throws \InstagramAPI\Exception\InstagramException
      *
      * @return \InstagramAPI\Response\TokenResultResponse
      */
-    public function getZeroRatingTokenResult(
-        $prelogin)
+    public function getZeroRatingTokenResult()
     {
-        $request = $this->ig->request('zr/token/result/')
+        return $this->ig->request('zr/token/result/')
             ->setNeedsAuth(false)
             ->addParam('custom_device_id', $this->ig->uuid)
             ->addParam('device_id', $this->ig->device_id)
             ->addParam('fetch_reason', 'token_expired')
-            ->addParam('token_hash', '');
-
-        if (!$prelogin) {
-            $request->setVersion(3);
-        }
-
-        return $request->getResponse(new Response\TokenResultResponse());
+            ->addParam('token_hash', '')
+            ->getResponse(new Response\TokenResultResponse());
     }
 
     /**
